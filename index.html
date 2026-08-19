@@ -55,12 +55,24 @@
   .field-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-bg); }
   textarea.field-input { resize: vertical; }
 
-  .mode-toggle { display: flex; gap: 8px; margin-bottom: 18px; }
+  .mode-toggle { display: flex; gap: 6px; margin-bottom: 18px; }
   .mode-btn {
-    flex: 1; padding: 10px; background: #fff; border: 1px solid var(--border); color: var(--text-muted);
-    border-radius: 8px; font-size: 13px; cursor: pointer; font-family: inherit; font-weight: 600;
+    flex: 1; padding: 10px 6px; background: #fff; border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: 8px; font-size: 11.5px; cursor: pointer; font-family: inherit; font-weight: 600;
   }
   .mode-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+  .sub-toggle { display: flex; gap: 6px; margin-bottom: 16px; }
+  .sub-btn {
+    flex: 1; padding: 8px; background: var(--bg-main); border: 1px solid var(--border); color: var(--text-muted);
+    border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; font-weight: 600;
+  }
+  .sub-btn.active { border-color: var(--accent); color: var(--accent); background: #fff; }
+
+  .upload-preview {
+    background: var(--bg-main); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px;
+    font-size: 13px; line-height: 1.6; margin-bottom: 16px;
+  }
 
   button { cursor: pointer; border: none; border-radius: 8px; font-family: inherit; font-weight: 700; }
   .btn-primary { width: 100%; padding: 13px; background: var(--accent); color: #fff; font-size: 14px; }
@@ -177,9 +189,25 @@
         pemeriksaan terhadap sebuah Pelaku Jasa Keuangan (PJK) fiktif.
       </div>
 
+      <div class="api-key-block" style="border-top:none;margin-top:0;padding-top:0;">
+        <label for="api-key-input" class="field-label">GOOGLE AI STUDIO API KEY</label>
+        <div class="key-input-row">
+          <input id="api-key-input" class="field-input" type="password" placeholder="AIza... atau AQ...." autocomplete="new-password" spellcheck="false" />
+          <button type="button" id="toggle-key-btn" class="toggle-key-btn">Lihat</button>
+        </div>
+        <p id="gate-error" class="error-text hidden"></p>
+        <p class="note">
+          Belum punya key? Buat gratis (tanpa kartu kredit) di
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>,
+          cukup login pakai akun Google. Key disimpan di browser kamu sendiri (localStorage) dan
+          dikirim langsung ke Google, tidak pernah melewati server lain.
+        </p>
+      </div>
+
       <div class="mode-toggle">
         <button type="button" id="mode-preset-btn" class="mode-btn active">Kasus Siap Pakai</button>
-        <button type="button" id="mode-custom-btn" class="mode-btn">Buat Kasus Sendiri</button>
+        <button type="button" id="mode-custom-btn" class="mode-btn">🔒 Buat Kasus Sendiri</button>
+        <button type="button" id="mode-upload-btn" class="mode-btn">Upload Dokumen</button>
       </div>
 
       <div id="preset-section">
@@ -202,19 +230,16 @@
         <textarea id="custom-redflags" class="field-input" rows="4" placeholder="Contoh:&#10;NPL naik tajam dalam dua triwulan terakhir&#10;Komite risiko tidak rapat rutin"></textarea>
       </div>
 
-      <div class="api-key-block">
-        <label for="api-key-input" class="field-label">GOOGLE AI STUDIO API KEY</label>
-        <div class="key-input-row">
-          <input id="api-key-input" class="field-input" type="password" placeholder="AIza... atau AQ...." autocomplete="new-password" spellcheck="false" />
-          <button type="button" id="toggle-key-btn" class="toggle-key-btn">Lihat</button>
-        </div>
-        <p id="gate-error" class="error-text hidden"></p>
-        <p class="note">
-          Belum punya key? Buat gratis (tanpa kartu kredit) di
-          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>,
-          cukup login pakai akun Google. Key disimpan di browser kamu sendiri (localStorage) dan
-          dikirim langsung ke Google, tidak pernah melewati server lain.
+      <div id="upload-section" class="hidden">
+        <label for="upload-file-input" class="field-label">UPLOAD DOKUMEN SUMBER</label>
+        <input id="upload-file-input" class="field-input" type="file" accept=".pdf,.txt,.png,.jpg,.jpeg,.docx,.doc,.csv,.xlsx,.xls" />
+        <p class="note" style="margin-top:-8px;">
+          Hasil paling akurat untuk PDF, gambar (JPG/PNG), atau teks (.txt). Format lain
+          (docx/xlsx/dll) tetap dicoba, tapi hasilnya bisa kurang presisi tergantung isinya.
         </p>
+        <button type="button" id="generate-from-file-btn" class="btn-outline" style="width:100%;margin-bottom:12px;">Generate Kasus dari Dokumen</button>
+        <p id="upload-status" class="note hidden"></p>
+        <div id="upload-preview" class="upload-preview hidden"></div>
       </div>
 
       <button id="start-btn" class="btn-primary">Mulai Pemeriksaan →</button>
@@ -424,8 +449,10 @@ const startBtn = document.getElementById('start-btn');
 const caseSelect = document.getElementById('case-select');
 const modePresetBtn = document.getElementById('mode-preset-btn');
 const modeCustomBtn = document.getElementById('mode-custom-btn');
+const modeUploadBtn = document.getElementById('mode-upload-btn');
 const presetSection = document.getElementById('preset-section');
 const customSection = document.getElementById('custom-section');
+const uploadSection = document.getElementById('upload-section');
 const apiKeyInput = document.getElementById('api-key-input');
 const toggleKeyBtn = document.getElementById('toggle-key-btn');
 const gateError = document.getElementById('gate-error');
@@ -447,19 +474,43 @@ let caseMode = 'preset';
 const savedKey = localStorage.getItem(STORAGE_KEY);
 if (savedKey) apiKeyInput.value = savedKey;
 
+const ADMIN_CODE = 'ojkadmin2026';
+let isAdmin = false;
+
+function showSection(mode) {
+  presetSection.classList.toggle('hidden', mode !== 'preset');
+  customSection.classList.toggle('hidden', mode !== 'custom');
+  uploadSection.classList.toggle('hidden', mode !== 'upload');
+  modePresetBtn.classList.toggle('active', mode === 'preset');
+  modeCustomBtn.classList.toggle('active', mode === 'custom');
+  modeUploadBtn.classList.toggle('active', mode === 'upload');
+}
+
+function requireAdmin(featureName) {
+  if (isAdmin) return true;
+  const code = prompt(`Fitur "${featureName}" khusus admin.\nMasukkan kode admin:`);
+  if (code === null) return false;
+  if (code !== ADMIN_CODE) {
+    alert('Kode admin salah.');
+    return false;
+  }
+  isAdmin = true;
+  modeCustomBtn.textContent = 'Buat Kasus Sendiri ✓';
+  return true;
+}
+
 modePresetBtn.addEventListener('click', () => {
   caseMode = 'preset';
-  modePresetBtn.classList.add('active');
-  modeCustomBtn.classList.remove('active');
-  presetSection.classList.remove('hidden');
-  customSection.classList.add('hidden');
+  showSection('preset');
 });
 modeCustomBtn.addEventListener('click', () => {
+  if (!requireAdmin('Buat Kasus Sendiri')) return;
   caseMode = 'custom';
-  modeCustomBtn.classList.add('active');
-  modePresetBtn.classList.remove('active');
-  customSection.classList.remove('hidden');
-  presetSection.classList.add('hidden');
+  showSection('custom');
+});
+modeUploadBtn.addEventListener('click', () => {
+  caseMode = 'upload';
+  showSection('upload');
 });
 
 CASES.forEach((c, idx) => {
@@ -539,6 +590,145 @@ async function callGemini(systemPrompt, msgHistory, apiKey) {
   return parts.map(p => p.text || '').join('');
 }
 
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('Gagal membaca file.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function sha256Hex(text) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(text);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function generateCaseFromFile(file, apiKey) {
+  const base64 = await readFileAsBase64(file);
+  const mimeType = file.type || 'application/octet-stream';
+  const hash = await sha256Hex(base64);
+  const cacheKey = 'ojk_case_cache_' + hash;
+
+  const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    return { caseObj: JSON.parse(cached), fromCache: true };
+  }
+
+  const extractionPrompt = `Kamu adalah asisten yang membaca dokumen (laporan, memo, data keuangan, hasil audit,
+atau dokumen lain terkait Pelaku Jasa Keuangan) dan mengonstruksikan SATU skenario kasus
+pemeriksaan pengawasan sektor jasa keuangan untuk keperluan simulasi pelatihan internal.
+
+Struktur dan format dokumen sumber bisa bermacam-macam (laporan keuangan, memo internal,
+hasil audit, notulen rapat, dsb) — tetap ekstrak informasi paling relevan untuk membentuk
+skenario pemeriksaan yang masuk akal, walau dokumennya tidak terstruktur rapi.
+
+Keluarkan HANYA JSON dengan struktur persis berikut, tanpa teks lain di luar JSON:
+{
+  "entity_name": "nama entitas PJK (samarkan/fiktifkan nama asli jika dokumen menyebut entitas nyata, demi kerahasiaan)",
+  "sector": "salah satu: Bank Umum / Perusahaan Efek / Perusahaan Asuransi / Perusahaan Pembiayaan / atau sektor lain yang sesuai isi dokumen",
+  "theme": "tema pemeriksaan utama, misal Manajemen Risiko / Tata Kelola / Kepatuhan & AML / Perlindungan Konsumen",
+  "profile": "1-3 kalimat profil singkat entitas berdasarkan isi dokumen",
+  "red_flags": ["temuan/isu 1 yang teridentifikasi dari dokumen", "temuan/isu 2", "temuan/isu 3 jika ada"]
+}`;
+
+  const response = await fetch(
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        contents: [{
+          role: "user",
+          parts: [
+            { text: extractionPrompt },
+            { inline_data: { mime_type: mimeType, data: base64 } }
+          ]
+        }],
+        generationConfig: {
+          maxOutputTokens: 1000,
+          temperature: 0,
+          responseMimeType: "application/json"
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    let msg = `Status ${response.status}`;
+    try {
+      const errBody = await response.json();
+      if (errBody?.error?.message) msg = errBody.error.message;
+    } catch (e) {}
+    throw new Error(msg);
+  }
+
+  const data = await response.json();
+  const parts = data?.candidates?.[0]?.content?.parts || [];
+  const rawText = parts.map(p => p.text || '').join('');
+
+  let caseObj;
+  try {
+    caseObj = JSON.parse(rawText);
+  } catch (e) {
+    throw new Error('Gagal memahami hasil AI sebagai data terstruktur. Coba dokumen lain atau ulangi.');
+  }
+  if (!caseObj.entity_name || !caseObj.profile) {
+    throw new Error('Hasil ekstraksi tidak lengkap. Coba lagi atau gunakan dokumen yang lebih jelas.');
+  }
+  if (!Array.isArray(caseObj.red_flags)) caseObj.red_flags = [];
+
+  localStorage.setItem(cacheKey, JSON.stringify(caseObj));
+  return { caseObj, fromCache: false };
+}
+
+const uploadFileInput = document.getElementById('upload-file-input');
+const generateFromFileBtn = document.getElementById('generate-from-file-btn');
+const uploadStatus = document.getElementById('upload-status');
+const uploadPreview = document.getElementById('upload-preview');
+let uploadedCase = null;
+
+generateFromFileBtn.addEventListener('click', async () => {
+  const file = uploadFileInput.files[0];
+  const apiKey = apiKeyInput.value.trim();
+
+  uploadStatus.classList.remove('hidden');
+  uploadPreview.classList.add('hidden');
+
+  if (!file) {
+    uploadStatus.textContent = 'Pilih file dokumen dulu.';
+    return;
+  }
+  if (!apiKey) {
+    uploadStatus.textContent = 'Isi API key dulu sebelum generate kasus dari dokumen.';
+    return;
+  }
+
+  generateFromFileBtn.disabled = true;
+  uploadStatus.textContent = 'Membaca dan menganalisis dokumen...';
+
+  try {
+    const { caseObj, fromCache } = await generateCaseFromFile(file, apiKey);
+    uploadedCase = caseObj;
+    uploadStatus.textContent = fromCache
+      ? 'Dokumen ini pernah diproses sebelumnya — hasil diambil dari cache, dijamin konsisten.'
+      : 'Kasus berhasil dibuat dari dokumen.';
+    uploadPreview.innerHTML =
+      `<strong>${uploadedCase.entity_name}</strong><br>` +
+      `${uploadedCase.sector} — ${uploadedCase.theme}<br>` +
+      `<span style="color:var(--text-muted)">${uploadedCase.profile}</span><br>` +
+      `<span style="color:var(--text-muted)">${uploadedCase.red_flags.length} red flag teridentifikasi</span>`;
+    uploadPreview.classList.remove('hidden');
+  } catch (err) {
+    uploadedCase = null;
+    uploadStatus.textContent = 'Gagal: ' + err.message;
+  } finally {
+    generateFromFileBtn.disabled = false;
+  }
+});
+
 async function startSimulation() {
   const apiKey = apiKeyInput.value.trim();
   gateError.classList.add('hidden');
@@ -555,7 +745,14 @@ async function startSimulation() {
   }
 
   let chosenCase;
-  if (caseMode === 'custom') {
+  if (caseMode === 'upload') {
+    if (!uploadedCase) {
+      gateError.textContent = 'Klik "Generate Kasus dari Dokumen" dulu dan pastikan berhasil sebelum memulai.';
+      gateError.classList.remove('hidden');
+      return;
+    }
+    chosenCase = uploadedCase;
+  } else if (caseMode === 'custom') {
     const entity = document.getElementById('custom-entity').value.trim();
     const sector = document.getElementById('custom-sector').value.trim();
     const theme = document.getElementById('custom-theme').value.trim();
