@@ -205,7 +205,7 @@
       <div class="api-key-block">
         <label for="api-key-input" class="field-label">GOOGLE AI STUDIO API KEY</label>
         <div class="key-input-row">
-          <input id="api-key-input" class="field-input" type="password" placeholder="AIza..." autocomplete="new-password" spellcheck="false" />
+          <input id="api-key-input" class="field-input" type="password" placeholder="AIza... atau AQ...." autocomplete="new-password" spellcheck="false" />
           <button type="button" id="toggle-key-btn" class="toggle-key-btn">Lihat</button>
         </div>
         <p id="gate-error" class="error-text hidden"></p>
@@ -548,8 +548,8 @@ async function startSimulation() {
     gateError.classList.remove('hidden');
     return;
   }
-  if (!apiKey.startsWith('AIza')) {
-    gateError.textContent = 'Format API key tampak tidak sesuai (biasanya diawali AIza...). Cek kembali.';
+  if (!apiKey.startsWith('AIza') && !apiKey.startsWith('AQ.')) {
+    gateError.textContent = 'Format API key tampak tidak sesuai (biasanya diawali AIza... atau AQ....). Cek kembali.';
     gateError.classList.remove('hidden');
     return;
   }
