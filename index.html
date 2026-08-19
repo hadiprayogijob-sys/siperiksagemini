@@ -556,13 +556,30 @@ function addMessage(role, text) {
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
+async function fetchWithRetry(url, options, onRetry) {
+  const maxRetries = 3;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, options);
+    if (response.ok) return response;
+
+    const retryable = response.status === 503 || response.status === 429;
+    if (retryable && attempt < maxRetries) {
+      const waitMs = (attempt + 1) * 3000;
+      if (onRetry) onRetry(attempt + 1, maxRetries, waitMs);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+      continue;
+    }
+    return response;
+  }
+}
+
 async function callGemini(systemPrompt, msgHistory, apiKey) {
   const contents = msgHistory.map(m => ({
     role: m.role === 'assistant' ? 'model' : 'user',
     parts: [{ text: m.content }]
   }));
 
-  const response = await fetch(
+  const response = await fetchWithRetry(
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
     {
       method: "POST",
@@ -575,6 +592,9 @@ async function callGemini(systemPrompt, msgHistory, apiKey) {
         systemInstruction: { parts: [{ text: systemPrompt }] },
         generationConfig: { maxOutputTokens: 1000 }
       })
+    },
+    (attempt, max, waitMs) => {
+      statusText.textContent = `Server sedang sibuk, mencoba lagi (${attempt}/${max})...`;
     }
   );
   if (!response.ok) {
@@ -634,7 +654,7 @@ Keluarkan HANYA JSON dengan struktur persis berikut, tanpa teks lain di luar JSO
   "red_flags": ["temuan/isu 1 yang teridentifikasi dari dokumen", "temuan/isu 2", "temuan/isu 3 jika ada"]
 }`;
 
-  const response = await fetch(
+  const response = await fetchWithRetry(
     "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
     {
       method: "POST",
@@ -653,6 +673,9 @@ Keluarkan HANYA JSON dengan struktur persis berikut, tanpa teks lain di luar JSO
           responseMimeType: "application/json"
         }
       })
+    },
+    (attempt, max, waitMs) => {
+      uploadStatus.textContent = `Server sedang sibuk, mencoba lagi (${attempt}/${max})...`;
     }
   );
 
